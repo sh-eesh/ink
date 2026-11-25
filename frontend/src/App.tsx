@@ -40,6 +40,7 @@ function App() {
   const [notesLoading, setNotesLoading] = useState(false);
 
   const [showArchived, setShowArchived] = useState(false);
+  const [searchQuery, setSearchQuery] = useState("");
 
   const [backendReady, setBackendReady] = useState(false);
   const [backendSlow, setBackendSlow] = useState(false);
@@ -436,10 +437,17 @@ function App() {
 
   // Display the notes workspace for logged-in users
   if (user) {
+    const currentViewNotes = notes.filter((note) =>
+      showArchived ? note.is_archived : !note.is_archived,
+    );
+
+    const normalizedSearch = searchQuery.trim().toLowerCase();
+
     const visibleNotes = sortNotes(
-      notes.filter((note) =>
-        showArchived ? note.is_archived : !note.is_archived,
-      ),
+      currentViewNotes.filter((note) => {
+        const searchableText = `${note.title} ${note.content}`.toLowerCase();
+        return searchableText.includes(normalizedSearch);
+      }),
     );
 
     return (
@@ -544,14 +552,33 @@ function App() {
               </span>
             </div>
 
+            <div className="form-field">
+              <input
+                type="search"
+                placeholder="Search notes by title or content..."
+                value={searchQuery}
+                onChange={(event) => setSearchQuery(event.target.value)}
+              />
+            </div>
+
             {visibleNotes.length === 0 ? (
               <div className="empty-state">
                 <div className="empty-icon">✎</div>
-                <h3>{showArchived ? "No archived notes" : "No notes yet"}</h3>
+
+                <h3>
+                  {normalizedSearch
+                    ? "No matching notes"
+                    : showArchived
+                      ? "No archived notes"
+                      : "No notes yet"}
+                </h3>
+
                 <p>
-                  {showArchived
-                    ? "Notes you archive will appear here."
-                    : "Create your first note using the editor above."}
+                  {normalizedSearch
+                    ? "Try a different search term."
+                    : showArchived
+                      ? "Notes you archive will appear here."
+                      : "Create your first note using the editor above."}
                 </p>
               </div>
             ) : (

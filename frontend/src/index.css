@@ -27,3 +27,7 @@ input,
 textarea {
   font: inherit;
 }
+
+.notes-section > .form-field {
+  margin-bottom: 18px;
+}

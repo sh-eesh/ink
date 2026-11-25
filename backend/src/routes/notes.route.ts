@@ -5,6 +5,21 @@ import { authenticate } from "../middleware/auth.middleware.js";
 
 const router = Router();
 
+const MAX_TITLE_LENGTH = 200;
+const MAX_CONTENT_LENGTH = 20000;
+
+// Check whether a value is a valid UUID
+function isValidUUID(value: string): boolean {
+  return /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(
+    value,
+  );
+}
+
+// Check whether a request body is a valid object
+function isValidBody(body: unknown): body is Record<string, unknown> {
+  return typeof body === "object" && body !== null && !Array.isArray(body);
+}
+
 // GET /api/notes
 // Retrieve all notes belonging to the logged-in user
 router.get("/", authenticate, async (_req, res) => {
@@ -33,6 +48,13 @@ router.post("/", authenticate, async (req, res) => {
   const supabase = res.locals.supabase as SupabaseClient;
   const user = res.locals.user;
 
+  if (!isValidBody(req.body)) {
+    res.status(400).json({
+      error: "Invalid request body",
+    });
+    return;
+  }
+
   const { title, content } = req.body;
 
   if (typeof title !== "string" || typeof content !== "string") {
@@ -42,9 +64,16 @@ router.post("/", authenticate, async (req, res) => {
     return;
   }
 
-  if (title.trim().length > 200) {
+  if (title.trim().length > MAX_TITLE_LENGTH) {
     res.status(400).json({
       error: "Title cannot exceed 200 characters",
+    });
+    return;
+  }
+
+  if (content.length > MAX_CONTENT_LENGTH) {
+    res.status(400).json({
+      error: "Content cannot exceed 20000 characters",
     });
     return;
   }
@@ -75,6 +104,21 @@ router.post("/", authenticate, async (req, res) => {
 // Update a note's content, pinned status or archived status
 router.patch("/:id", authenticate, async (req, res) => {
   const supabase = res.locals.supabase as SupabaseClient;
+  const noteId = req.params.id;
+
+  if (typeof noteId !== "string" || !isValidUUID(noteId)) {
+    res.status(400).json({
+      error: "Invalid note ID",
+    });
+    return;
+  }
+
+  if (!isValidBody(req.body)) {
+    res.status(400).json({
+      error: "Invalid request body",
+    });
+    return;
+  }
 
   const { title, content, is_pinned, is_archived } = req.body;
 
@@ -118,9 +162,16 @@ router.patch("/:id", authenticate, async (req, res) => {
     return;
   }
 
-  if (typeof title === "string" && title.trim().length > 200) {
+  if (typeof title === "string" && title.trim().length > MAX_TITLE_LENGTH) {
     res.status(400).json({
       error: "Title cannot exceed 200 characters",
+    });
+    return;
+  }
+
+  if (typeof content === "string" && content.length > MAX_CONTENT_LENGTH) {
+    res.status(400).json({
+      error: "Content cannot exceed 20000 characters",
     });
     return;
   }
@@ -156,7 +207,7 @@ router.patch("/:id", authenticate, async (req, res) => {
   const { data, error } = await supabase
     .from("notes")
     .update(updates)
-    .eq("id", req.params.id)
+    .eq("id", noteId)
     .select()
     .maybeSingle();
 
@@ -183,11 +234,19 @@ router.patch("/:id", authenticate, async (req, res) => {
 // Delete a note belonging to the logged-in user
 router.delete("/:id", authenticate, async (req, res) => {
   const supabase = res.locals.supabase as SupabaseClient;
+  const noteId = req.params.id;
+
+  if (typeof noteId !== "string" || !isValidUUID(noteId)) {
+    res.status(400).json({
+      error: "Invalid note ID",
+    });
+    return;
+  }
 
   const { data, error } = await supabase
     .from("notes")
     .delete()
-    .eq("id", req.params.id)
+    .eq("id", noteId)
     .select("id")
     .maybeSingle();
 
