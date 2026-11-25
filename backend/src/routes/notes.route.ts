@@ -72,13 +72,18 @@ router.post("/", authenticate, async (req, res) => {
 });
 
 // PATCH /api/notes/:id
-// Update an existing note belonging to the logged-in user
+// Update a note's content, pinned status or archived status
 router.patch("/:id", authenticate, async (req, res) => {
   const supabase = res.locals.supabase as SupabaseClient;
 
-  const { title, content } = req.body;
+  const { title, content, is_pinned, is_archived } = req.body;
 
-  if (title === undefined && content === undefined) {
+  if (
+    title === undefined &&
+    content === undefined &&
+    is_pinned === undefined &&
+    is_archived === undefined
+  ) {
     res.status(400).json({
       error: "No fields provided for update",
     });
@@ -99,6 +104,20 @@ router.patch("/:id", authenticate, async (req, res) => {
     return;
   }
 
+  if (is_pinned !== undefined && typeof is_pinned !== "boolean") {
+    res.status(400).json({
+      error: "Pinned status must be a boolean",
+    });
+    return;
+  }
+
+  if (is_archived !== undefined && typeof is_archived !== "boolean") {
+    res.status(400).json({
+      error: "Archived status must be a boolean",
+    });
+    return;
+  }
+
   if (typeof title === "string" && title.trim().length > 200) {
     res.status(400).json({
       error: "Title cannot exceed 200 characters",
@@ -109,6 +128,8 @@ router.patch("/:id", authenticate, async (req, res) => {
   const updates: {
     title?: string;
     content?: string;
+    is_pinned?: boolean;
+    is_archived?: boolean;
   } = {};
 
   if (title !== undefined) {
@@ -117,6 +138,19 @@ router.patch("/:id", authenticate, async (req, res) => {
 
   if (content !== undefined) {
     updates.content = content;
+  }
+
+  if (is_pinned !== undefined) {
+    updates.is_pinned = is_pinned;
+  }
+
+  if (is_archived !== undefined) {
+    updates.is_archived = is_archived;
+
+    // Unpin a note when it is archived
+    if (is_archived) {
+      updates.is_pinned = false;
+    }
   }
 
   const { data, error } = await supabase

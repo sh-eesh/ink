@@ -10,6 +10,8 @@ import {
   createNote,
   updateNote,
   deleteNote,
+  setNotePinned,
+  setNoteArchived,
 } from "./services/notes.service";
 
 import type { Note } from "./services/notes.service";
@@ -36,6 +38,8 @@ function App() {
   const [message, setMessage] = useState("");
   const [notes, setNotes] = useState<Note[]>([]);
   const [notesLoading, setNotesLoading] = useState(false);
+
+  const [showArchived, setShowArchived] = useState(false);
 
   const [backendReady, setBackendReady] = useState(false);
   const [backendSlow, setBackendSlow] = useState(false);
@@ -185,6 +189,19 @@ function App() {
     }
   }
 
+  // Sort pinned notes before unpinned notes
+  function sortNotes(notesToSort: Note[]) {
+    return [...notesToSort].sort((a, b) => {
+      if (a.is_pinned !== b.is_pinned) {
+        return Number(b.is_pinned) - Number(a.is_pinned);
+      }
+
+      return (
+        new Date(b.updated_at).getTime() - new Date(a.updated_at).getTime()
+      );
+    });
+  }
+
   // Retrieve notes from the backend
   async function handleLoadNotes() {
     setNotesLoading(true);
@@ -192,7 +209,7 @@ function App() {
 
     try {
       const result = await getNotes();
-      setNotes(result.notes);
+      setNotes(sortNotes(result.notes));
     } catch (error) {
       setMessage(
         error instanceof Error ? error.message : "Failed to load notes",
@@ -210,7 +227,7 @@ function App() {
     try {
       const result = await createNote(title, content);
 
-      setNotes((currentNotes) => [result.note, ...currentNotes]);
+      setNotes((currentNotes) => sortNotes([result.note, ...currentNotes]));
 
       setTitle("");
       setContent("");
@@ -251,13 +268,11 @@ function App() {
       const result = await updateNote(editingNoteId, editTitle, editContent);
 
       setNotes((currentNotes) =>
-        currentNotes
-          .map((note) => (note.id === editingNoteId ? result.note : note))
-          .sort(
-            (a, b) =>
-              new Date(b.updated_at).getTime() -
-              new Date(a.updated_at).getTime(),
+        sortNotes(
+          currentNotes.map((note) =>
+            note.id === editingNoteId ? result.note : note,
           ),
+        ),
       );
 
       handleCancelEdit();
@@ -296,6 +311,66 @@ function App() {
     } catch (error) {
       setMessage(
         error instanceof Error ? error.message : "Failed to delete note",
+      );
+    }
+  }
+
+  // Toggle the pinned status of a note
+  async function handleTogglePin(note: Note) {
+    setMessage("");
+
+    try {
+      const result = await setNotePinned(note.id, !note.is_pinned);
+
+      setNotes((currentNotes) =>
+        sortNotes(
+          currentNotes.map((currentNote) =>
+            currentNote.id === note.id ? result.note : currentNote,
+          ),
+        ),
+      );
+
+      setMessage(
+        result.note.is_pinned
+          ? "Note pinned successfully."
+          : "Note unpinned successfully.",
+      );
+    } catch (error) {
+      setMessage(
+        error instanceof Error
+          ? error.message
+          : "Failed to change pinned status",
+      );
+    }
+  }
+
+  // Toggle the archived status of a note
+  async function handleToggleArchive(note: Note) {
+    setMessage("");
+
+    try {
+      const result = await setNoteArchived(note.id, !note.is_archived);
+
+      setNotes((currentNotes) =>
+        currentNotes.map((currentNote) =>
+          currentNote.id === note.id ? result.note : currentNote,
+        ),
+      );
+
+      if (editingNoteId === note.id) {
+        handleCancelEdit();
+      }
+
+      setMessage(
+        result.note.is_archived
+          ? "Note archived successfully."
+          : "Note restored successfully.",
+      );
+    } catch (error) {
+      setMessage(
+        error instanceof Error
+          ? error.message
+          : "Failed to change archived status",
       );
     }
   }
@@ -361,6 +436,12 @@ function App() {
 
   // Display the notes workspace for logged-in users
   if (user) {
+    const visibleNotes = sortNotes(
+      notes.filter((note) =>
+        showArchived ? note.is_archived : !note.is_archived,
+      ),
+    );
+
     return (
       <div className="app-shell">
         <header className="topbar">
@@ -382,76 +463,100 @@ function App() {
           <section className="welcome-section">
             <div>
               <p className="eyebrow">YOUR WORKSPACE</p>
-              <h1>Your notes</h1>
-              <p className="subtitle">A quiet place for your thoughts.</p>
+              <h1>{showArchived ? "Archived notes" : "Your notes"}</h1>
+              <p className="subtitle">
+                {showArchived
+                  ? "Notes you've put away for later."
+                  : "A quiet place for your thoughts."}
+              </p>
             </div>
 
-            <button
-              className="button button-secondary"
-              onClick={handleLoadNotes}
-              disabled={notesLoading}
-            >
-              {notesLoading ? "Loading..." : "Refresh notes"}
-            </button>
+            <div className="account-section">
+              <button
+                className="button button-secondary"
+                onClick={() => {
+                  setShowArchived((current) => !current);
+                  handleCancelEdit();
+                  setMessage("");
+                }}
+              >
+                {showArchived ? "All notes" : "Archived"}
+              </button>
+
+              <button
+                className="button button-secondary"
+                onClick={handleLoadNotes}
+                disabled={notesLoading}
+              >
+                {notesLoading ? "Loading..." : "Refresh notes"}
+              </button>
+            </div>
           </section>
 
-          <section className="composer-card">
-            <h2>Create a note</h2>
+          {!showArchived && (
+            <section className="composer-card">
+              <h2>Create a note</h2>
 
-            <form onSubmit={handleCreateNote}>
-              <input
-                className="title-input"
-                type="text"
-                placeholder="Give your note a title..."
-                value={title}
-                onChange={(event) => setTitle(event.target.value)}
-                maxLength={200}
-              />
+              <form onSubmit={handleCreateNote}>
+                <input
+                  className="title-input"
+                  type="text"
+                  placeholder="Give your note a title..."
+                  value={title}
+                  onChange={(event) => setTitle(event.target.value)}
+                  maxLength={200}
+                />
 
-              <textarea
-                className="content-input"
-                placeholder="Start writing..."
-                value={content}
-                onChange={(event) => setContent(event.target.value)}
-                rows={5}
-              />
+                <textarea
+                  className="content-input"
+                  placeholder="Start writing..."
+                  value={content}
+                  onChange={(event) => setContent(event.target.value)}
+                  rows={5}
+                />
 
-              <div className="composer-footer">
-                <span className="helper-text">
-                  Your notes are saved to your account.
-                </span>
+                <div className="composer-footer">
+                  <span className="helper-text">
+                    Your notes are saved to your account.
+                  </span>
 
-                <button
-                  className="button button-primary"
-                  type="submit"
-                  disabled={!title.trim() && !content.trim()}
-                >
-                  Create note
-                </button>
-              </div>
-            </form>
-          </section>
+                  <button
+                    className="button button-primary"
+                    type="submit"
+                    disabled={!title.trim() && !content.trim()}
+                  >
+                    Create note
+                  </button>
+                </div>
+              </form>
+            </section>
+          )}
 
           {message && <p className="status-message">{message}</p>}
 
           <section className="notes-section">
             <div className="section-heading">
-              <h2>All notes</h2>
+              <h2>{showArchived ? "Archived" : "All notes"}</h2>
 
               <span className="note-count">
-                {notes.length} {notes.length === 1 ? "note" : "notes"}
+                {visibleNotes.length}{" "}
+                {visibleNotes.length === 1 ? "note" : "notes"}
               </span>
             </div>
 
-            {notes.length === 0 ? (
+            {visibleNotes.length === 0 ? (
               <div className="empty-state">
                 <div className="empty-icon">✎</div>
-                <h3>No notes yet</h3>
-                <p>Create your first note using the editor above.</p>
+                <h3>{showArchived ? "No archived notes" : "No notes yet"}</h3>
+                <p>
+                  {showArchived
+                    ? "Notes you archive will appear here."
+                    : "Create your first note using the editor above."}
+                </p>
               </div>
             ) : (
               <div className="notes-grid">
-                {notes.map((note) => (
+                {visibleNotes.map((note) => (
                   <article className="note-card" key={note.id}>
                     {editingNoteId === note.id ? (
                       <form onSubmit={handleUpdateNote}>
@@ -493,7 +598,10 @@ function App() {
                       </form>
                     ) : (
                       <>
-                        <h3>{note.title || "Untitled"}</h3>
+                        <h3>
+                          {!showArchived && note.is_pinned && "Pinned · "}
+                          {note.title || "Untitled"}
+                        </h3>
 
                         <p>{note.content || "No content"}</p>
 
@@ -502,12 +610,32 @@ function App() {
                         </span>
 
                         <div className="composer-footer">
+                          {!showArchived && (
+                            <>
+                              <button
+                                className="button button-secondary"
+                                type="button"
+                                onClick={() => handleStartEdit(note)}
+                              >
+                                Edit
+                              </button>
+
+                              <button
+                                className="button button-secondary"
+                                type="button"
+                                onClick={() => handleTogglePin(note)}
+                              >
+                                {note.is_pinned ? "Unpin" : "Pin"}
+                              </button>
+                            </>
+                          )}
+
                           <button
                             className="button button-secondary"
                             type="button"
-                            onClick={() => handleStartEdit(note)}
+                            onClick={() => handleToggleArchive(note)}
                           >
-                            Edit
+                            {showArchived ? "Restore" : "Archive"}
                           </button>
 
                           <button

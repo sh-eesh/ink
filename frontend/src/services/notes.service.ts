@@ -33,6 +33,22 @@ export async function updateNote(id: string, title: string, content: string) {
   });
 }
 
+// Change the pinned status of a note
+export async function setNotePinned(id: string, isPinned: boolean) {
+  return await apiRequest<{ note: Note }>(`/api/notes/${id}`, {
+    method: "PATCH",
+    body: JSON.stringify({ is_pinned: isPinned }),
+  });
+}
+
+// Change the archived status of a note
+export async function setNoteArchived(id: string, isArchived: boolean) {
+  return await apiRequest<{ note: Note }>(`/api/notes/${id}`, {
+    method: "PATCH",
+    body: JSON.stringify({ is_archived: isArchived }),
+  });
+}
+
 // Delete an existing note
 export async function deleteNote(id: string) {
   return await apiRequest<{ message: string }>(`/api/notes/${id}`, {
