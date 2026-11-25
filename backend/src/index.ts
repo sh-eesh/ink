@@ -2,6 +2,9 @@ import express from "express";
 import cors from "cors";
 import dotenv from "dotenv";
 
+import healthRoutes from "./routes/health.route.js";
+import notesRoutes from "./routes/notes.route.js";
+
 dotenv.config();
 
 const app = express();
@@ -10,11 +13,8 @@ const PORT = process.env.PORT || 5000;
 app.use(cors());
 app.use(express.json());
 
-app.get("/", (_req, res) => {
-  res.json({
-    message: "Ink API is running",
-  });
-});
+app.use("/api/health", healthRoutes);
+app.use("/api/notes", notesRoutes);
 
 app.listen(PORT, () => {
   console.log(`Server running on port ${PORT}`);
