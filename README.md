@@ -14,15 +14,6 @@ A simple notes app.
 - Search notes by title or content
 - Private notes for each user
 
-## Built with
-
-- React
-- TypeScript
-- Vite
-- Node.js
-- Express
-- Supabase (PostgreSQL and Auth)
-
 ## Running locally
 
 You'll need Node.js and a Supabase project.
