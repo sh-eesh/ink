@@ -1,5 +1,6 @@
 import { apiRequest } from "../api/client";
 
+// Define the structure of a note
 export type Note = {
   id: string;
   user_id: string;
@@ -11,6 +12,7 @@ export type Note = {
   updated_at: string;
 };
 
+// Retrieve the logged-in user's notes
 export async function getNotes() {
   return await apiRequest<{ notes: Note[] }>("/api/notes");
 }

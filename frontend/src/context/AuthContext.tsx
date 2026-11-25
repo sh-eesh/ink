@@ -5,6 +5,7 @@ import type { Session, User } from "@supabase/supabase-js";
 
 import { supabase } from "../lib/supabase";
 
+// Define the authentication data shared across components
 type AuthContextType = {
   session: Session | null;
   user: User | null;
@@ -18,6 +19,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
+    // Listen for login, logout, and session changes
     const {
       data: { subscription },
     } = supabase.auth.onAuthStateChange((_event, session) => {
@@ -25,6 +27,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       setLoading(false);
     });
 
+    // Remove the listener when the provider unmounts
     return () => subscription.unsubscribe();
   }, []);
 
@@ -41,6 +44,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   );
 }
 
+// Access authentication data from any component
 export function useAuth() {
   const context = useContext(AuthContext);
 

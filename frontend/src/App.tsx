@@ -11,14 +11,18 @@ import type { Note } from "./services/notes.service";
 function App() {
   const { user, loading } = useAuth();
 
+  // Control the login and registration forms
   const [mode, setMode] = useState<"login" | "register">("login");
+
+  // Store the authentication form values
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
-  const [message, setMessage] = useState("");
 
+  const [message, setMessage] = useState("");
   const [notes, setNotes] = useState<Note[]>([]);
   const [notesLoading, setNotesLoading] = useState(false);
 
+  // Handle login and registration
   async function handleSubmit(event: SubmitEvent<HTMLFormElement>) {
     event.preventDefault();
     setMessage("");
@@ -33,11 +37,13 @@ function App() {
       return;
     }
 
+    // Email confirmation may be required before login
     if (mode === "register" && !result.data.session) {
       setMessage("Check your email to confirm your account.");
     }
   }
 
+  // Log out the current user
   async function handleLogout() {
     const { error } = await logoutUser();
 
@@ -46,6 +52,7 @@ function App() {
     }
   }
 
+  // Load notes from the backend
   async function handleLoadNotes() {
     setNotesLoading(true);
     setMessage("");
@@ -62,10 +69,12 @@ function App() {
     }
   }
 
+  // Wait until Supabase restores the saved session
   if (loading) {
     return <p>Loading session...</p>;
   }
 
+  // Show the authenticated view
   if (user) {
     return (
       <main>
@@ -97,6 +106,7 @@ function App() {
     );
   }
 
+  // Show the login or registration form
   return (
     <main>
       <h1>Ink</h1>
