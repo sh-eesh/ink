@@ -12,7 +12,14 @@ export type Note = {
   updated_at: string;
 };
 
-// Retrieve the logged-in user's notes
+// Retrieve the logged in user's notes
 export async function getNotes() {
   return await apiRequest<{ notes: Note[] }>("/api/notes");
+}
+
+export async function createNote(title: string, content: string) {
+  return await apiRequest<{ note: Note }>("/api/notes", {
+    method: "POST",
+    body: JSON.stringify({ title, content }),
+  });
 }

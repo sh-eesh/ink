@@ -15,7 +15,12 @@ const app = express();
 const PORT = process.env.PORT || 5000;
 
 // Allow frontend to make request to the API
-app.use(cors());
+app.use(cors({
+    origin: [
+        "http://localhost:5173",
+        "https://ink-good-notes.vercel.app"
+    ]
+}));
 
 // Parse incoming JSON req so routes can access req.body
 app.use(express.json());
