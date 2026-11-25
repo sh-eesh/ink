@@ -65,4 +65,78 @@ router.post("/", authenticate, async (req, res) => {
   });
 });
 
+// Update an existing note belonging to the logged in user.
+router.patch("/:id", authenticate, async (req, res) => {
+  const supabase = res.locals.supabase as SupabaseClient;
+
+  const { title, content } = req.body;
+
+  // Only allow title and content to be updated.
+  if (title === undefined && content === undefined) {
+    res.status(400).json({
+      error: "No fields provided for update",
+    });
+    return;
+  }
+
+  if (title !== undefined && typeof title !== "string") {
+    res.status(400).json({
+      error: "Title must be a string",
+    });
+    return;
+  }
+
+  if (content !== undefined && typeof content !== "string") {
+    res.status(400).json({
+      error: "Content must be a string",
+    });
+    return;
+  }
+
+  if (typeof title === "string" && title.trim().length > 200) {
+    res.status(400).json({
+      error: "Title cannot exceed 200 characters",
+    });
+    return;
+  }
+
+  const updates: {
+    title?: string;
+    content?: string;
+  } = {};
+
+  if (title !== undefined) {
+    updates.title = title.trim();
+  }
+
+  if (content !== undefined) {
+    updates.content = content;
+  }
+
+  const { data, error } = await supabase
+    .from("notes")
+    .update(updates)
+    .eq("id", req.params.id)
+    .select()
+    .maybeSingle();
+
+  if (error) {
+    res.status(500).json({
+      error: "Failed to update note",
+    });
+    return;
+  }
+
+  if (!data) {
+    res.status(404).json({
+      error: "Note not found",
+    });
+    return;
+  }
+
+  res.status(200).json({
+    note: data,
+  });
+});
+
 export default router;

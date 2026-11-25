@@ -17,9 +17,18 @@ export async function getNotes() {
   return await apiRequest<{ notes: Note[] }>("/api/notes");
 }
 
+// Create a new note
 export async function createNote(title: string, content: string) {
   return await apiRequest<{ note: Note }>("/api/notes", {
     method: "POST",
+    body: JSON.stringify({ title, content }),
+  });
+}
+
+// Update an existing note
+export async function updateNote(id: string, title: string, content: string) {
+  return await apiRequest<{ note: Note }>(`/api/notes/${id}`, {
+    method: "PATCH",
     body: JSON.stringify({ title, content }),
   });
 }

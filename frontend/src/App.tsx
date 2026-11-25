@@ -1,10 +1,13 @@
 import { useEffect, useState } from "react";
+import type { SubmitEvent } from "react";
+
 import { useAuth } from "./context/AuthContext";
+
 import { registerUser, loginUser, logoutUser } from "./services/auth.service";
-import { getNotes, createNote } from "./services/notes.service";
+
+import { getNotes, createNote, updateNote } from "./services/notes.service";
 
 import type { Note } from "./services/notes.service";
-import type { SubmitEvent } from "react";
 
 import "./App.css";
 
@@ -21,6 +24,10 @@ function App() {
   const [title, setTitle] = useState("");
   const [content, setContent] = useState("");
 
+  const [editingNoteId, setEditingNoteId] = useState<string | null>(null);
+  const [editTitle, setEditTitle] = useState("");
+  const [editContent, setEditContent] = useState("");
+
   const [message, setMessage] = useState("");
   const [notes, setNotes] = useState<Note[]>([]);
   const [notesLoading, setNotesLoading] = useState(false);
@@ -35,7 +42,6 @@ function App() {
     let activeController: AbortController | null = null;
     let retryTimer: ReturnType<typeof setTimeout> | null = null;
 
-    // Show a longer-wait message after 25 seconds
     const slowTimer = setTimeout(() => {
       if (!cancelled) {
         setBackendSlow(true);
@@ -47,7 +53,6 @@ function App() {
         const controller = new AbortController();
         activeController = controller;
 
-        // Stop waiting if a request takes longer than 65 seconds
         const requestTimeout = setTimeout(() => {
           controller.abort();
         }, 65000);
@@ -76,7 +81,6 @@ function App() {
           return;
         }
 
-        // Retry after three seconds
         await new Promise<void>((resolve) => {
           retryTimer = setTimeout(() => {
             retryTimer = null;
@@ -99,9 +103,9 @@ function App() {
     };
   }, [backendCheck]);
 
-  // Automatically load notes when a user logs in
   const userId = user?.id;
 
+  // Automatically load notes when a user logs in
   useEffect(() => {
     if (!backendReady || !userId) {
       if (!userId) {
@@ -213,6 +217,53 @@ function App() {
     }
   }
 
+  // Open a note in editing mode
+  function handleStartEdit(note: Note) {
+    setEditingNoteId(note.id);
+    setEditTitle(note.title);
+    setEditContent(note.content);
+    setMessage("");
+  }
+
+  // Cancel editing
+  function handleCancelEdit() {
+    setEditingNoteId(null);
+    setEditTitle("");
+    setEditContent("");
+  }
+
+  // Save changes to an existing note
+  async function handleUpdateNote(event: SubmitEvent<HTMLFormElement>) {
+    event.preventDefault();
+
+    if (!editingNoteId) {
+      return;
+    }
+
+    setMessage("");
+
+    try {
+      const result = await updateNote(editingNoteId, editTitle, editContent);
+
+      setNotes((currentNotes) =>
+        currentNotes
+          .map((note) => (note.id === editingNoteId ? result.note : note))
+          .sort(
+            (a, b) =>
+              new Date(b.updated_at).getTime() -
+              new Date(a.updated_at).getTime(),
+          ),
+      );
+
+      handleCancelEdit();
+      setMessage("Note updated successfully.");
+    } catch (error) {
+      setMessage(
+        error instanceof Error ? error.message : "Failed to update note",
+      );
+    }
+  }
+
   // Show the startup screen until the backend is ready
   if (!backendReady) {
     return (
@@ -272,7 +323,7 @@ function App() {
     );
   }
 
-  // Display the notes workspace for logged in users
+  // Display the notes workspace for logged-in users
   if (user) {
     return (
       <div className="app-shell">
@@ -284,6 +335,7 @@ function App() {
 
           <div className="account-section">
             <span className="user-email">{user.email}</span>
+
             <button className="button button-secondary" onClick={handleLogout}>
               Logout
             </button>
@@ -349,6 +401,7 @@ function App() {
           <section className="notes-section">
             <div className="section-heading">
               <h2>All notes</h2>
+
               <span className="note-count">
                 {notes.length} {notes.length === 1 ? "note" : "notes"}
               </span>
@@ -364,11 +417,65 @@ function App() {
               <div className="notes-grid">
                 {notes.map((note) => (
                   <article className="note-card" key={note.id}>
-                    <h3>{note.title || "Untitled"}</h3>
-                    <p>{note.content || "No content"}</p>
-                    <span className="note-date">
-                      {new Date(note.updated_at).toLocaleDateString()}
-                    </span>
+                    {editingNoteId === note.id ? (
+                      <form onSubmit={handleUpdateNote}>
+                        <input
+                          className="title-input"
+                          type="text"
+                          value={editTitle}
+                          onChange={(event) => setEditTitle(event.target.value)}
+                          maxLength={200}
+                          placeholder="Note title"
+                        />
+
+                        <textarea
+                          className="content-input"
+                          value={editContent}
+                          onChange={(event) =>
+                            setEditContent(event.target.value)
+                          }
+                          rows={5}
+                          placeholder="Note content"
+                        />
+
+                        <div className="composer-footer">
+                          <button
+                            className="button button-secondary"
+                            type="button"
+                            onClick={handleCancelEdit}
+                          >
+                            Cancel
+                          </button>
+
+                          <button
+                            className="button button-primary"
+                            type="submit"
+                          >
+                            Save changes
+                          </button>
+                        </div>
+                      </form>
+                    ) : (
+                      <>
+                        <h3>{note.title || "Untitled"}</h3>
+
+                        <p>{note.content || "No content"}</p>
+
+                        <span className="note-date">
+                          {new Date(note.updated_at).toLocaleDateString()}
+                        </span>
+
+                        <div className="composer-footer">
+                          <button
+                            className="button button-secondary"
+                            type="button"
+                            onClick={() => handleStartEdit(note)}
+                          >
+                            Edit
+                          </button>
+                        </div>
+                      </>
+                    )}
                   </article>
                 ))}
               </div>
@@ -399,6 +506,7 @@ function App() {
         <form className="auth-form" onSubmit={handleSubmit}>
           <div className="form-field">
             <label htmlFor="email">Email address</label>
+
             <input
               id="email"
               type="email"
@@ -411,6 +519,7 @@ function App() {
 
           <div className="form-field">
             <label htmlFor="password">Password</label>
+
             <input
               id="password"
               type="password"
