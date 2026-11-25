@@ -170,6 +170,7 @@
   color: #777777;
   font-size: 12px;
 }
+
 .notes-section {
   margin-top: 48px;
 }
@@ -374,6 +375,100 @@
   color: #888888;
 }
 
+.startup-screen {
+  min-height: 100vh;
+  display: grid;
+  place-items: center;
+  padding: 24px;
+  background: #111111;
+}
+
+.startup-card {
+  width: min(420px, 100%);
+  padding: 35px;
+  background: #191919;
+  border: 1px solid #2b2b2b;
+  border-radius: 14px;
+}
+
+.startup-content {
+  margin-top: 65px;
+  text-align: center;
+}
+
+.startup-icon {
+  width: 48px;
+  height: 48px;
+  margin: 0 auto 25px;
+  display: grid;
+  place-items: center;
+  border: 1px solid #444444;
+  border-radius: 14px;
+}
+
+.startup-icon-inner {
+  color: #eeeeee;
+  font-family: Georgia, serif;
+  font-size: 27px;
+}
+
+.startup-content h1 {
+  margin-bottom: 12px;
+  color: #eeeeee;
+  font-size: 21px;
+  letter-spacing: -0.6px;
+}
+
+.startup-content > p {
+  color: #888888;
+  font-size: 13px;
+  line-height: 1.7;
+}
+
+.startup-progress {
+  height: 4px;
+  margin-top: 30px;
+  overflow: hidden;
+  background: #333333;
+  border-radius: 10px;
+}
+
+.startup-progress-bar {
+  width: 35%;
+  height: 100%;
+  background: #eeeeee;
+  border-radius: 10px;
+  animation: startup-loading 1.5s ease-in-out infinite;
+}
+
+@keyframes startup-loading {
+  from {
+    transform: translateX(-110%);
+  }
+
+  to {
+    transform: translateX(310%);
+  }
+}
+
+.startup-status {
+  display: block;
+  margin-top: 14px;
+  color: #777777;
+  font-size: 11px;
+}
+
+.startup-retry {
+  margin-top: 28px;
+}
+
+.startup-retry p {
+  margin-bottom: 15px;
+  color: #999999;
+  font-size: 12px;
+  line-height: 1.6;
+}
+
 @media (max-width: 650px) {
   .topbar {
     height: 64px;
@@ -414,6 +509,10 @@
   }
 
   .auth-card {
+    padding: 28px;
+  }
+
+  .startup-card {
     padding: 28px;
   }
 }
