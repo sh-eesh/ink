@@ -3,10 +3,12 @@ import { useAuth } from "./context/AuthContext";
 import { registerUser, loginUser, logoutUser } from "./services/auth.service";
 import { getNotes, createNote } from "./services/notes.service";
 
-import type { SubmitEvent } from "react";
 import type { Note } from "./services/notes.service";
+import type { SubmitEvent } from "react";
 
 import "./App.css";
+
+const API_URL = import.meta.env.VITE_API_URL;
 
 function App() {
   const { user, loading } = useAuth();
@@ -22,6 +24,124 @@ function App() {
   const [message, setMessage] = useState("");
   const [notes, setNotes] = useState<Note[]>([]);
   const [notesLoading, setNotesLoading] = useState(false);
+
+  const [backendReady, setBackendReady] = useState(false);
+  const [backendSlow, setBackendSlow] = useState(false);
+  const [backendCheck, setBackendCheck] = useState(0);
+
+  // Check whether the backend is available
+  useEffect(() => {
+    let cancelled = false;
+    let activeController: AbortController | null = null;
+    let retryTimer: ReturnType<typeof setTimeout> | null = null;
+
+    // Show a longer-wait message after 25 seconds
+    const slowTimer = setTimeout(() => {
+      if (!cancelled) {
+        setBackendSlow(true);
+      }
+    }, 25000);
+
+    async function checkBackend() {
+      while (!cancelled) {
+        const controller = new AbortController();
+        activeController = controller;
+
+        // Stop waiting if a request takes longer than 65 seconds
+        const requestTimeout = setTimeout(() => {
+          controller.abort();
+        }, 65000);
+
+        try {
+          const response = await fetch(`${API_URL}/api/health`, {
+            signal: controller.signal,
+          });
+
+          if (response.ok) {
+            if (!cancelled) {
+              clearTimeout(slowTimer);
+              setBackendReady(true);
+              setBackendSlow(false);
+            }
+
+            return;
+          }
+        } catch {
+          // The backend may still be starting
+        } finally {
+          clearTimeout(requestTimeout);
+        }
+
+        if (cancelled) {
+          return;
+        }
+
+        // Retry after three seconds
+        await new Promise<void>((resolve) => {
+          retryTimer = setTimeout(() => {
+            retryTimer = null;
+            resolve();
+          }, 3000);
+        });
+      }
+    }
+
+    void checkBackend();
+
+    return () => {
+      cancelled = true;
+      activeController?.abort();
+      clearTimeout(slowTimer);
+
+      if (retryTimer) {
+        clearTimeout(retryTimer);
+      }
+    };
+  }, [backendCheck]);
+
+  // Automatically load notes when a user logs in
+  const userId = user?.id;
+
+  useEffect(() => {
+    if (!backendReady || !userId) {
+      if (!userId) {
+        setNotes([]);
+      }
+
+      return;
+    }
+
+    let cancelled = false;
+
+    async function loadNotes() {
+      setNotesLoading(true);
+      setMessage("");
+
+      try {
+        const result = await getNotes();
+
+        if (!cancelled) {
+          setNotes(result.notes);
+        }
+      } catch (error) {
+        if (!cancelled) {
+          setMessage(
+            error instanceof Error ? error.message : "Failed to load notes",
+          );
+        }
+      } finally {
+        if (!cancelled) {
+          setNotesLoading(false);
+        }
+      }
+    }
+
+    void loadNotes();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [backendReady, userId]);
 
   // Handle login and registration
   async function handleSubmit(event: SubmitEvent<HTMLFormElement>) {
@@ -73,16 +193,6 @@ function App() {
     }
   }
 
-  // Automatically load notes when a user logs in
-  useEffect(() => {
-    if (!user) {
-      setNotes([]);
-      return;
-    }
-
-    handleLoadNotes();
-  }, [user]);
-
   // Create a new note through the backend API
   async function handleCreateNote(event: SubmitEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -103,6 +213,57 @@ function App() {
     }
   }
 
+  // Show the startup screen until the backend is ready
+  if (!backendReady) {
+    return (
+      <div className="startup-screen">
+        <div className="startup-card">
+          <a className="brand" href="/">
+            <span className="brand-icon">i</span>
+            Ink
+          </a>
+
+          <div className="startup-content">
+            <div className="startup-icon">
+              <span className="startup-icon-inner">i</span>
+            </div>
+
+            <h1>Starting your workspace</h1>
+
+            <p>
+              We're connecting to our backend. Please wait while we prepare your
+              workspace.
+            </p>
+
+            <div className="startup-progress">
+              <div className="startup-progress-bar" />
+            </div>
+
+            <span className="startup-status">Connecting to Ink API...</span>
+
+            {backendSlow && (
+              <div className="startup-retry">
+                <p>
+                  This is taking longer than usual. Our server may be waking up.
+                </p>
+
+                <button
+                  className="button button-secondary"
+                  onClick={() => {
+                    setBackendSlow(false);
+                    setBackendCheck((current) => current + 1);
+                  }}
+                >
+                  Retry connection
+                </button>
+              </div>
+            )}
+          </div>
+        </div>
+      </div>
+    );
+  }
+
   if (loading) {
     return (
       <div className="loading-screen">
@@ -111,7 +272,7 @@ function App() {
     );
   }
 
-  // Display the notes workspace for logged-in users
+  // Display the notes workspace for logged in users
   if (user) {
     return (
       <div className="app-shell">
