@@ -1,10 +1,12 @@
 import { Router } from "express";
 import type { SupabaseClient } from "@supabase/supabase-js";
+
 import { authenticate } from "../middleware/auth.middleware.js";
 
 const router = Router();
 
-// Retrieve all notes belonging to the logged in user
+// GET /api/notes
+// Retrieve all notes belonging to the logged-in user
 router.get("/", authenticate, async (_req, res) => {
   const supabase = res.locals.supabase as SupabaseClient;
 
@@ -25,15 +27,14 @@ router.get("/", authenticate, async (_req, res) => {
   });
 });
 
+// POST /api/notes
 // Create a new note
 router.post("/", authenticate, async (req, res) => {
   const supabase = res.locals.supabase as SupabaseClient;
   const user = res.locals.user;
 
-  // Get the title and content from the request body
   const { title, content } = req.body;
 
-  // Make sure both fields contain strings
   if (typeof title !== "string" || typeof content !== "string") {
     res.status(400).json({
       error: "Title and content must be strings",
@@ -41,10 +42,16 @@ router.post("/", authenticate, async (req, res) => {
     return;
   }
 
+  if (title.trim().length > 200) {
+    res.status(400).json({
+      error: "Title cannot exceed 200 characters",
+    });
+    return;
+  }
+
   const { data, error } = await supabase
     .from("notes")
     .insert({
-      // Assign the note to the authenticated user
       user_id: user.id,
       title: title.trim(),
       content,
@@ -59,19 +66,18 @@ router.post("/", authenticate, async (req, res) => {
     return;
   }
 
-  // Return the newely created note
   res.status(201).json({
     note: data,
   });
 });
 
-// Update an existing note belonging to the logged in user.
+// PATCH /api/notes/:id
+// Update an existing note belonging to the logged-in user
 router.patch("/:id", authenticate, async (req, res) => {
   const supabase = res.locals.supabase as SupabaseClient;
 
   const { title, content } = req.body;
 
-  // Only allow title and content to be updated.
   if (title === undefined && content === undefined) {
     res.status(400).json({
       error: "No fields provided for update",
@@ -136,6 +142,37 @@ router.patch("/:id", authenticate, async (req, res) => {
 
   res.status(200).json({
     note: data,
+  });
+});
+
+// DELETE /api/notes/:id
+// Delete a note belonging to the logged-in user
+router.delete("/:id", authenticate, async (req, res) => {
+  const supabase = res.locals.supabase as SupabaseClient;
+
+  const { data, error } = await supabase
+    .from("notes")
+    .delete()
+    .eq("id", req.params.id)
+    .select("id")
+    .maybeSingle();
+
+  if (error) {
+    res.status(500).json({
+      error: "Failed to delete note",
+    });
+    return;
+  }
+
+  if (!data) {
+    res.status(404).json({
+      error: "Note not found",
+    });
+    return;
+  }
+
+  res.status(200).json({
+    message: "Note deleted successfully",
   });
 });
 

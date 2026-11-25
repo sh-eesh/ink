@@ -5,7 +5,12 @@ import { useAuth } from "./context/AuthContext";
 
 import { registerUser, loginUser, logoutUser } from "./services/auth.service";
 
-import { getNotes, createNote, updateNote } from "./services/notes.service";
+import {
+  getNotes,
+  createNote,
+  updateNote,
+  deleteNote,
+} from "./services/notes.service";
 
 import type { Note } from "./services/notes.service";
 
@@ -264,6 +269,37 @@ function App() {
     }
   }
 
+  // Delete a note after confirmation
+  async function handleDeleteNote(note: Note) {
+    const confirmed = window.confirm(
+      `Are you sure you want to delete "${note.title || "Untitled"}"?`,
+    );
+
+    if (!confirmed) {
+      return;
+    }
+
+    setMessage("");
+
+    try {
+      await deleteNote(note.id);
+
+      setNotes((currentNotes) =>
+        currentNotes.filter((currentNote) => currentNote.id !== note.id),
+      );
+
+      if (editingNoteId === note.id) {
+        handleCancelEdit();
+      }
+
+      setMessage("Note deleted successfully.");
+    } catch (error) {
+      setMessage(
+        error instanceof Error ? error.message : "Failed to delete note",
+      );
+    }
+  }
+
   // Show the startup screen until the backend is ready
   if (!backendReady) {
     return (
@@ -472,6 +508,14 @@ function App() {
                             onClick={() => handleStartEdit(note)}
                           >
                             Edit
+                          </button>
+
+                          <button
+                            className="button button-secondary"
+                            type="button"
+                            onClick={() => handleDeleteNote(note)}
+                          >
+                            Delete
                           </button>
                         </div>
                       </>

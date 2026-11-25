@@ -12,7 +12,7 @@ export type Note = {
   updated_at: string;
 };
 
-// Retrieve the logged in user's notes
+// Retrieve the logged-in user's notes
 export async function getNotes() {
   return await apiRequest<{ notes: Note[] }>("/api/notes");
 }
@@ -30,5 +30,12 @@ export async function updateNote(id: string, title: string, content: string) {
   return await apiRequest<{ note: Note }>(`/api/notes/${id}`, {
     method: "PATCH",
     body: JSON.stringify({ title, content }),
+  });
+}
+
+// Delete an existing note
+export async function deleteNote(id: string) {
+  return await apiRequest<{ message: string }>(`/api/notes/${id}`, {
+    method: "DELETE",
   });
 }
